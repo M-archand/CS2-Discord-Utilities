@@ -13,8 +13,8 @@ namespace DiscordUtilities
     public partial class DiscordUtilities : BasePlugin, IPluginConfig<DUConfig>
     {
         public override string ModuleName => "Discord Utilities";
-        public override string ModuleAuthor => "Nocky (SourceFactory.eu)";
-        public override string ModuleVersion => "2.1.0";
+        public override string ModuleAuthor => "Nocky";
+        public override string ModuleVersion => "2.1.0 (v337)";
         public void OnConfigParsed(DUConfig config)
         {
             Config = config;
