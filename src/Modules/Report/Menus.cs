@@ -1,7 +1,8 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Admin;
-using CounterStrikeSharp.API.Modules.Menu;
+using CS2MenuManager.API.Enum;
+using CS2MenuManager.API.Menu;
 
 namespace Report
 {
@@ -14,36 +15,35 @@ namespace Report
                 player.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.NoReportsFound"]}");
                 return;
             }
-            CenterHtmlMenu Menu = new CenterHtmlMenu(Localizer["Menu.ReportsList", reportsList.Count], this);
+            WasdMenu Menu = new(Localizer["Menu.ReportsList", reportsList.Count], this);
 
             foreach (var item in reportsList)
             {
                 var data = item.Value;
                 if (Config.ReportMethod != 3)
-                    Menu.AddMenuOption(Localizer["Menu.ReportInfo", data.targetName, data.reason], (player, option) => OpenReportData_Menu(player, item.Key));
+                    Menu.AddItem(Localizer["Menu.ReportInfo", data.targetName, data.reason], (player, option) => OpenReportData_Menu(player, item.Key));
                 else
-                    Menu.AddMenuOption(Localizer["Menu.ReportInfo", data.senderName, data.reason], (player, option) => OpenReportData_Menu(player, item.Key));
+                    Menu.AddItem(Localizer["Menu.ReportInfo", data.senderName, data.reason], (player, option) => OpenReportData_Menu(player, item.Key));
             }
 
-            Menu.Open(player);
+            Menu.Display(player, 0);
         }
 
         public void OpenReportData_Menu(CCSPlayerController player, string reportId)
         {
             var data = reportsList[reportId];
-            CenterHtmlMenu Menu = new CenterHtmlMenu(Localizer["Menu.ReportDetails"], this);
-            Menu.PostSelectAction = PostSelectAction.Close;
+            WasdMenu Menu = new(Localizer["Menu.ReportDetails"], this);
 
-            Menu.AddMenuOption(Localizer["Menu.MarkAsSolved"], (player, option) => ReportSolved(player, reportId));
-            Menu.AddMenuOption(Localizer["Menu.ReportInfo.Sender", data.senderName], null!, true);
-            Menu.AddMenuOption(Localizer["Menu.ReportInfo.Reason", data.reason], null!, true);
+            Menu.AddItem(Localizer["Menu.MarkAsSolved"], (player, option) => ReportSolved(player, reportId));
+            Menu.AddItem(Localizer["Menu.ReportInfo.Sender", data.senderName], DisableOption.DisableHideNumber);
+            Menu.AddItem(Localizer["Menu.ReportInfo.Reason", data.reason], DisableOption.DisableHideNumber);
 
             if (Config.ReportMethod != 3)
-                Menu.AddMenuOption(Localizer["Menu.ReportInfo.Target", data.targetName], null!, true);
+                Menu.AddItem(Localizer["Menu.ReportInfo.Target", data.targetName], DisableOption.DisableHideNumber);
 
-            Menu.AddMenuOption(Localizer["Menu.ReportInfo.Time", data.time.ToString(Config.DateFormat)], null!, true);
+            Menu.AddItem(Localizer["Menu.ReportInfo.Time", data.time.ToString(Config.DateFormat)], DisableOption.DisableHideNumber);
 
-            Menu.Open(player);
+            Menu.Display(player, 0);
         }
 
         public void ReportSolved(CCSPlayerController player, string reportId)
@@ -66,36 +66,36 @@ namespace Report
                 }
             }
 
-            CenterHtmlMenu Menu = new CenterHtmlMenu(Localizer["Menu.ReportSelectPlayer"], this);
+            WasdMenu Menu = new(Localizer["Menu.ReportSelectPlayer"], this);
 
             if (Config.SelfReport)
             {
                 foreach (var p in Utilities.GetPlayers().Where(p => p.IsValid && p.SteamID.ToString().Length == 17))
-                    Menu.AddMenuOption(p.PlayerName, (player, target) => OnSelectPlayer_ReportMenu(player, p));
+                    Menu.AddItem(p.PlayerName, (player, option) => OnSelectPlayer_ReportMenu(player, p));
             }
             else
             {
                 foreach (var p in Utilities.GetPlayers().Where(p => p != null && p.IsValid && p != player && DiscordUtilities!.IsPlayerDataLoaded(p) && p.Connected == PlayerConnectedState.PlayerConnected && p.SteamID.ToString().Length == 17 && !AdminManager.PlayerHasPermissions(p, Config.UnreportableFlag)))
-                    Menu.AddMenuOption(p.PlayerName, (player, target) => OnSelectPlayer_ReportMenu(player, p));
+                    Menu.AddItem(p.PlayerName, (player, option) => OnSelectPlayer_ReportMenu(player, p));
             }
 
-            Menu.Open(player);
+            Menu.Display(player, 0);
         }
 
         public void OpenReportMenu_Reason(CCSPlayerController player, CCSPlayerController target)
         {
             var selectedTarget = target;
             string[] Reasons = Config.ReportReasons.Split(',');
-            var Menu = new CenterHtmlMenu(Localizer["Menu.ReportSelectReason"], this);
+            WasdMenu Menu = new(Localizer["Menu.ReportSelectReason"], this);
             foreach (var reason in Reasons)
             {
                 if (reason.Contains("#CUSTOMREASON"))
-                    Menu.AddMenuOption(Localizer["Menu.ReportCustomReason"], (player, target) => CustomReasonReport(player, selectedTarget));
+                    Menu.AddItem(Localizer["Menu.ReportCustomReason"], (player, option) => CustomReasonReport(player, selectedTarget));
                 else
-                    Menu.AddMenuOption(reason, (player, target) => SendReport(player, selectedTarget, reason));
+                    Menu.AddItem(reason, (player, option) => SendReport(player, selectedTarget, reason));
             }
-            Menu.PostSelectAction = PostSelectAction.Close;
-            Menu.Open(player);
+
+            Menu.Display(player, 0);
         }
 
         private void OnSelectPlayer_ReportMenu(CCSPlayerController player, CCSPlayerController target)
@@ -105,7 +105,7 @@ namespace Report
                 player.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ThisPlayerCannotBeReported", target.PlayerName]}");
                 return;
             }
-            OpenReportMenu_Reason(player, target);
+            CustomReasonReport(player, target);
         }
     }
 }

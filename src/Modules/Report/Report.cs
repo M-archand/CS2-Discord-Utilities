@@ -7,25 +7,36 @@ using CounterStrikeSharp.API.Core.Capabilities;
 using CounterStrikeSharp.API.Modules.Admin;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Entities;
+using CounterStrikeSharp.API.Modules.Timers;
 using DiscordUtilitiesAPI;
 using DiscordUtilitiesAPI.Builders;
 using DiscordUtilitiesAPI.Events;
 using DiscordUtilitiesAPI.Helpers;
 using static CounterStrikeSharp.API.Core.Listeners;
+using CssTimer = CounterStrikeSharp.API.Modules.Timers.Timer;
 
 namespace Report
 {
     public partial class Report : BasePlugin, IPluginConfig<Config>
     {
+        private const float PendingReportTimeoutSeconds = 120.0f;
+
         public override string ModuleName => "[Discord Utilities] Report System";
         public override string ModuleAuthor => "SourceFactory.eu";
         public override string ModuleVersion => "1.4";
         public IDiscordUtilitiesAPI? DiscordUtilities { get; set; }
         public Config Config { get; set; } = new();
-        public Dictionary<CCSPlayerController, CCSPlayerController> performReport = new();
-        public Dictionary<CCSPlayerController, int> reportCooldowns = new();
+        private readonly Dictionary<ulong, PendingReportState> pendingReports = new();
+        public Dictionary<ulong, int> reportCooldowns = new();
         public Dictionary<string, ReportData> reportsList = new();
         public List<ulong> solvedPlayers = new();
+
+        private sealed class PendingReportState
+        {
+            public required ulong TargetSteamId { get; init; }
+            public CssTimer? TimeoutTimer { get; set; }
+        }
+
         public class ReportData
         {
             public required ulong senderSteamId;
@@ -42,21 +53,24 @@ namespace Report
         }
         public override void OnAllPluginsLoaded(bool hotReload)
         {
-            GetDiscordUtilitiesEventSender().DiscordUtilitiesEventHandlers += DiscordUtilitiesEventHandler;
+            var eventSender = GetDiscordUtilitiesEventSender();
+            eventSender.DiscordUtilitiesEventHandlers -= DiscordUtilitiesEventHandler;
+            eventSender.DiscordUtilitiesEventHandlers += DiscordUtilitiesEventHandler;
             DiscordUtilities!.CheckVersion(ModuleName, ModuleVersion);
         }
         public override void Unload(bool hotReload)
         {
+            ClearPendingReports(notifyPlayers: hotReload);
             GetDiscordUtilitiesEventSender().DiscordUtilitiesEventHandlers -= DiscordUtilitiesEventHandler;
         }
 
         public override void Load(bool hotReload)
         {
             CreateCustomCommands();
-            AddCommandListener("say", OnPlayerSay, HookMode.Pre);
-            AddCommandListener("say_team", OnPlayerSay, HookMode.Pre);
+            AddCommandListener(null!, OnPlayerSay, HookMode.Pre);
             RegisterListener<OnMapStart>(mapName =>
             {
+                ClearPendingReports(notifyPlayers: true);
                 solvedPlayers.Clear();
             });
         }
@@ -67,15 +81,14 @@ namespace Report
             if (reportsList.Count == 0 || Config.ReportExpiration == 0)
                 return HookResult.Continue;
 
-            foreach (var report in reportsList)
-            {
-                var data = report.Value;
-                TimeSpan difference = DateTime.Now - data.time;
+            var expiredReportIds = reportsList
+                .Where(report => (DateTime.Now - report.Value.time).TotalMinutes > Config.ReportExpiration)
+                .Select(report => report.Key)
+                .ToList();
 
-                if (difference.TotalMinutes > Config.ReportExpiration)
-                {
-                    PerformReportSolved(report.Key, 1, null);
-                }
+            foreach (var reportId in expiredReportIds)
+            {
+                PerformReportSolved(reportId, 1, null);
             }
             return HookResult.Continue;
         }
@@ -86,10 +99,8 @@ namespace Report
             var player = @event.Userid;
             if (player != null && player.IsValid)
             {
-                if (performReport.ContainsKey(player))
-                    performReport.Remove(player);
-                if (reportCooldowns.ContainsKey(player))
-                    reportCooldowns.Remove(player);
+                CancelPendingReport(player.SteamID, notifyPlayer: false);
+                reportCooldowns.Remove(player.SteamID);
             }
 
             return HookResult.Continue;
@@ -98,20 +109,27 @@ namespace Report
 
         private HookResult OnPlayerSay(CCSPlayerController? player, CommandInfo info)
         {
-            if (player == null || !player.IsValid || player.AuthorizedSteamID == null || !performReport.ContainsKey(player))
+            if (player == null || !player.IsValid || player.AuthorizedSteamID == null)
                 return HookResult.Continue;
 
-            var reason = info.GetArg(1);
+            var command = info.GetArg(0).Trim().ToLowerInvariant();
+            if (command is not ("say" or "say_team"))
+                return HookResult.Continue;
+
+            if (!pendingReports.TryGetValue(player.SteamID, out var pendingReport))
+                return HookResult.Continue;
+
+            var reason = ExtractChatMessage(info);
             if (reason.Length < Config.ReasonLength)
             {
                 player.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer[name: "Chat.ReportShortReason"]}");
-                return HookResult.Handled;
+                ResetPendingReportTimeout(player.SteamID);
+                return HookResult.Stop;
             }
-            if (reason.Contains(Config.CancelCommand))
+            if (IsCancelReasonInput(reason))
             {
-                player.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ReportCancelled"]}");
-                performReport.Remove(player);
-                return HookResult.Handled;
+                CancelPendingReport(player.SteamID, notifyPlayer: true);
+                return HookResult.Stop;
             }
 
             var blockedReasons = Config.BlockedReason.Trim().ToLower().Split(",").ToList();
@@ -123,46 +141,58 @@ namespace Report
                     if (blockedReasons.Contains(x))
                     {
                         player.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ReportBlockedReason", x]}");
-                        performReport.Remove(player);
-                        return HookResult.Handled;
+                        ResetPendingReportTimeout(player.SteamID);
+                        return HookResult.Stop;
                     }
                 }
             }
-            SendReport(player, performReport[player], reason);
-            performReport.Remove(player);
-            return HookResult.Handled;
+
+            var target = Utilities.GetPlayerFromSteamId(pendingReport.TargetSteamId);
+            if (target == null || !target.IsValid || target.AuthorizedSteamID == null)
+            {
+                player.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.TargetNotConnected"]}");
+                CancelPendingReport(player.SteamID, notifyPlayer: false);
+                return HookResult.Stop;
+            }
+
+            if (SendReport(player, target, reason))
+                CancelPendingReport(player.SteamID, notifyPlayer: false);
+            else
+                ResetPendingReportTimeout(player.SteamID);
+
+            return HookResult.Stop;
         }
 
-        public void SendReport(CCSPlayerController sender, CCSPlayerController target, string reason)
+        public bool SendReport(CCSPlayerController sender, CCSPlayerController? target, string reason)
         {
-            if (reportCooldowns.ContainsKey(sender))
+            if (reportCooldowns.ContainsKey(sender.SteamID))
             {
-                var remainingTime = (int)Server.CurrentTime - reportCooldowns[sender];
+                var remainingTime = (int)Server.CurrentTime - reportCooldowns[sender.SteamID];
                 if (remainingTime < Config.ReportCooldown)
                 {
                     sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ReportCooldown", Config.ReportCooldown]}");
-                    return;
+                    return false;
                 }
-                reportCooldowns.Remove(sender);
+                reportCooldowns.Remove(sender.SteamID);
             }
-            if (Config.AntiSpamReport && solvedPlayers.Contains(target.SteamID))
+            if (target != null && Config.AntiSpamReport && solvedPlayers.Contains(target.SteamID))
             {
                 sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ThisPlayerCannotBeReported", target.PlayerName]}");
-                return;
+                return false;
             }
             if (Config.ReportMethod != 3)
             {
                 if (target == null || !target.IsValid || target.AuthorizedSteamID == null)
                 {
                     sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.TargetNotConnected"]}");
-                    return;
+                    return false;
                 }
                 if (!Config.SelfReport)
                 {
                     if (target == sender)
                     {
                         sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.SelfReport"]}");
-                        return;
+                        return false;
                     }
                 }
             }
@@ -180,13 +210,14 @@ namespace Report
             var config = Config.ReportEmbed;
             var embedBuider = DiscordUtilities!.GetEmbedBuilderFromConfig(config, replaceVariablesBuilder);
             var content = DiscordUtilities!.ReplaceVariables(Config.ReportEmbed.Content, replaceVariablesBuilder);
+            var reportTarget = Config.ReportMethod != 3 ? target! : sender;
 
             var reportData = new ReportData()
             {
                 senderSteamId = sender.SteamID,
                 senderName = sender.PlayerName,
-                targetSteamId = Config.ReportMethod != 3 ? target.SteamID : sender.SteamID,
-                targetName = Config.ReportMethod != 3 ? target.PlayerName : sender.PlayerName,
+                targetSteamId = reportTarget.SteamID,
+                targetName = reportTarget.PlayerName,
                 reason = reason,
                 messageId = 0,
                 time = DateTime.Now
@@ -196,19 +227,18 @@ namespace Report
             reportsList.Add(reportId, reportData);
             DiscordUtilities.SendCustomMessageToChannel($"report_{reportId}", ulong.Parse(Config.ChannelID), content, embedBuider, null, true);
 
-            reportCooldowns.Add(sender, (int)Server.CurrentTime);
-            sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ReportSend", target.PlayerName, reason]}");
+            reportCooldowns[sender.SteamID] = (int)Server.CurrentTime;
+            sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ReportSend", target?.PlayerName ?? sender.PlayerName, reason]}");
             foreach (var admin in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV && AdminManager.PlayerHasPermissions(p, Config.AdminFlag)))
             {
-                admin.PrintToChat(Localizer["Chat.AdminReportSend", sender.PlayerName, target.PlayerName, reason]);
+                admin.PrintToChat(Localizer["Chat.AdminReportSend", sender.PlayerName, target?.PlayerName ?? sender.PlayerName, reason]);
             }
+
+            return true;
         }
         public void CustomReasonReport(CCSPlayerController sender, CCSPlayerController target)
         {
-            if (!performReport.ContainsKey(sender))
-            {
-                performReport.Add(sender, target);
-            }
+            StartPendingReport(sender, target);
             sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.InserYourReason"]}");
         }
         private CCSPlayerController? GetTargetByName(string name, CCSPlayerController player)
@@ -499,6 +529,95 @@ namespace Report
             }
 
             return keyBuilder.ToString();
+        }
+
+        private static string ExtractChatMessage(CommandInfo message)
+        {
+            string commandString = message.GetCommandString;
+            if (!string.IsNullOrWhiteSpace(commandString))
+            {
+                int firstSpace = commandString.IndexOf(' ');
+                if (firstSpace >= 0 && firstSpace < commandString.Length - 1)
+                {
+                    return commandString[(firstSpace + 1)..].Trim().Trim('"');
+                }
+            }
+
+            string argString = message.ArgString?.Trim().Trim('"').Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(argString))
+            {
+                return argString;
+            }
+
+            return message.GetArg(1).Trim();
+        }
+
+        private bool IsCancelReasonInput(string reason)
+        {
+            var cancelCommand = Config.CancelCommand.Trim();
+            if (string.IsNullOrWhiteSpace(cancelCommand))
+                return false;
+
+            reason = reason.Trim();
+            return reason.Equals(cancelCommand, StringComparison.OrdinalIgnoreCase)
+                || reason.Equals($"!{cancelCommand}", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void StartPendingReport(CCSPlayerController sender, CCSPlayerController target)
+        {
+            CancelPendingReport(sender.SteamID, notifyPlayer: false);
+            pendingReports[sender.SteamID] = new PendingReportState
+            {
+                TargetSteamId = target.SteamID,
+                TimeoutTimer = CreatePendingReportTimer(sender.SteamID)
+            };
+        }
+
+        private CssTimer CreatePendingReportTimer(ulong senderSteamId)
+        {
+            return AddTimer(PendingReportTimeoutSeconds, () => ExpirePendingReport(senderSteamId), TimerFlags.STOP_ON_MAPCHANGE);
+        }
+
+        private void ResetPendingReportTimeout(ulong senderSteamId)
+        {
+            if (!pendingReports.TryGetValue(senderSteamId, out var pendingReport))
+                return;
+
+            pendingReport.TimeoutTimer?.Kill();
+            pendingReport.TimeoutTimer = CreatePendingReportTimer(senderSteamId);
+        }
+
+        private void ExpirePendingReport(ulong senderSteamId)
+        {
+            if (!pendingReports.Remove(senderSteamId, out _))
+                return;
+
+            NotifyPendingReportCancelled(senderSteamId, "Chat.ReportCancelledTimeout");
+        }
+
+        private void CancelPendingReport(ulong senderSteamId, bool notifyPlayer)
+        {
+            if (!pendingReports.Remove(senderSteamId, out var pendingReport))
+                return;
+
+            pendingReport.TimeoutTimer?.Kill();
+            if (notifyPlayer)
+                NotifyPendingReportCancelled(senderSteamId, "Chat.ReportCancelled");
+        }
+
+        private void ClearPendingReports(bool notifyPlayers)
+        {
+            foreach (var senderSteamId in pendingReports.Keys.ToList())
+            {
+                CancelPendingReport(senderSteamId, notifyPlayers);
+            }
+        }
+
+        private void NotifyPendingReportCancelled(ulong senderSteamId, string localizerKey)
+        {
+            var sender = Utilities.GetPlayerFromSteamId(senderSteamId);
+            if (sender != null && sender.IsValid)
+                sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer[localizerKey]}");
         }
     }
 }
