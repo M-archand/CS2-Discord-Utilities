@@ -6,7 +6,6 @@ using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Core.Capabilities;
 using CounterStrikeSharp.API.Modules.Admin;
 using CounterStrikeSharp.API.Modules.Commands;
-using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Timers;
 using DiscordUtilitiesAPI;
 using DiscordUtilitiesAPI.Builders;
@@ -165,6 +164,11 @@ namespace Report
 
         public bool SendReport(CCSPlayerController sender, CCSPlayerController? target, string reason)
         {
+            if (!ulong.TryParse(Config.ChannelID, out var channelId))
+            {
+                Console.WriteLine($"[DU Report] Channel ID is not configured or invalid ('{Config.ChannelID}'). Set a valid Channel ID in the config.");
+                return false;
+            }
             if (reportCooldowns.ContainsKey(sender.SteamID))
             {
                 var remainingTime = (int)Server.CurrentTime - reportCooldowns[sender.SteamID];
@@ -209,7 +213,7 @@ namespace Report
 
             var config = Config.ReportEmbed;
             var embedBuider = DiscordUtilities!.GetEmbedBuilderFromConfig(config, replaceVariablesBuilder);
-            var content = DiscordUtilities!.ReplaceVariables(Config.ReportEmbed.Content, replaceVariablesBuilder);
+            var content = AppendRoleMention(DiscordUtilities!.ReplaceVariables(Config.ReportEmbed.Content, replaceVariablesBuilder));
             var reportTarget = Config.ReportMethod != 3 ? target! : sender;
 
             var reportData = new ReportData()
@@ -225,7 +229,7 @@ namespace Report
 
             string reportId = GetRandomChars();
             reportsList.Add(reportId, reportData);
-            DiscordUtilities.SendCustomMessageToChannel($"report_{reportId}", ulong.Parse(Config.ChannelID), content, embedBuider, null, true);
+            DiscordUtilities.SendCustomMessageToChannel($"report_{reportId}", channelId, content, embedBuider, null, true);
 
             reportCooldowns[sender.SteamID] = (int)Server.CurrentTime;
             sender.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.ReportSend", target?.PlayerName ?? sender.PlayerName, reason]}");
@@ -449,7 +453,7 @@ namespace Report
 
                 var config = Config.ReportEmbed;
                 var embedBuider = DiscordUtilities!.GetEmbedBuilderFromConfig(config, replaceVariablesBuilder);
-                var content = DiscordUtilities.ReplaceVariables(Config.ReportEmbed.Content, replaceVariablesBuilder);
+                var content = AppendRoleMention(DiscordUtilities.ReplaceVariables(Config.ReportEmbed.Content, replaceVariablesBuilder));
 
                 var componentsBuilder = new Components.Builder();
                 var InteractiveButtons = new List<Components.InteractiveButtonsBuilder>();
@@ -464,34 +468,6 @@ namespace Report
                         Emoji = Config.ReportEmbed.ReportButton.Emoji,
                     }
                     );
-                }
-                var target = Utilities.GetPlayerFromSteamId(reportData.targetSteamId);
-                if (target != null)
-                {
-                    if (Config.ReportEmbed.SearchPlayerButton.Enabled)
-                    {
-                        InteractiveButtons.Add(
-                            new Components.InteractiveButtonsBuilder
-                            {
-                                CustomId = $"playerstatssearch_{Config.ReportEmbed.SearchPlayerButton.ServerName}:{target.SteamID}",
-                                Label = Config.ReportEmbed.SearchPlayerButton.Text,
-                                Color = (Components.ButtonColor)Config.ReportEmbed.SearchPlayerButton.Color,
-                                Emoji = Config.ReportEmbed.SearchPlayerButton.Emoji,
-                            }
-                        );
-                    }
-                    if (Config.ReportEmbed.BanlistButton.Enabled)
-                    {
-                        InteractiveButtons.Add(
-                            new Components.InteractiveButtonsBuilder
-                            {
-                                CustomId = $"banlist_report_{target.SteamID}",
-                                Label = Config.ReportEmbed.BanlistButton.Text,
-                                Color = (Components.ButtonColor)Config.ReportEmbed.BanlistButton.Color,
-                                Emoji = Config.ReportEmbed.BanlistButton.Emoji,
-                            }
-                        );
-                    }
                 }
                 componentsBuilder.InteractiveButtons = InteractiveButtons;
 
@@ -550,6 +526,13 @@ namespace Report
             }
 
             return message.GetArg(1).Trim();
+        }
+
+        private string AppendRoleMention(string content)
+        {
+            if (string.IsNullOrWhiteSpace(Config.MentionRole))
+                return content;
+            return $"<@&{Config.MentionRole}> {content}";
         }
 
         private bool IsCancelReasonInput(string reason)

@@ -22,6 +22,7 @@ public class Config : BasePluginConfig
     [JsonPropertyName("Cancel Report Command")] public string CancelCommand { get; set; } = "cancel";
     [JsonPropertyName("Date Time Format")] public string DateFormat { get; set; } = "yyyy-MM-dd HH:mm:ss";
     [JsonPropertyName("Channel ID")] public string ChannelID { get; set; } = "";
+    [JsonPropertyName("Mention Role")] public string MentionRole { get; set; } = "";
     [JsonPropertyName("Report Embed")] public ReportEmbed ReportEmbed { get; set; } = new ReportEmbed();
     [JsonPropertyName("Solved Embeds")] public SolvedEmbeds SolvedEmbeds { get; set; } = new SolvedEmbeds();
 }
@@ -45,25 +46,6 @@ public class ReportEmbed
     [JsonPropertyName("Footer")] public string Footer { get; set; } = "";
     [JsonPropertyName("Footer Timestamp")] public bool FooterTimestamp { get; set; } = false;
     [JsonPropertyName("Admin Button")] public ReportButton ReportButton { get; set; } = new();
-    [JsonPropertyName("Player Stats Button")] public SearchPlayerButton SearchPlayerButton { get; set; } = new();
-    [JsonPropertyName("Player Punishments Button")] public BanlistButton BanlistButton { get; set; } = new();
-}
-
-public class BanlistButton
-{
-    [JsonPropertyName("Enabled")] public bool Enabled { get; set; } = true;
-    [JsonPropertyName("Button Text")] public string Text { get; set; } = "Player Punishments";
-    [JsonPropertyName("Button Color")] public int Color { get; set; } = 4;
-    [JsonPropertyName("Button Emoji")] public string Emoji { get; set; } = ":no_entry_sign:";
-}
-
-public class SearchPlayerButton
-{
-    [JsonPropertyName("Enabled")] public bool Enabled { get; set; } = true;
-    [JsonPropertyName("Server Name")] public string ServerName { get; set; } = "Public";
-    [JsonPropertyName("Button Text")] public string Text { get; set; } = "Player Stats";
-    [JsonPropertyName("Button Color")] public int Color { get; set; } = 3;
-    [JsonPropertyName("Button Emoji")] public string Emoji { get; set; } = ":mag:";
 }
 
 public class ReportButton
