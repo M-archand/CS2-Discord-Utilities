@@ -52,7 +52,7 @@ namespace EventNotifications
                 return;
             }
 
-            var playerList = Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV && p.Connected == PlayerConnectedState.PlayerConnected && (p.Team == CsTeam.Terrorist || p.Team == CsTeam.CounterTerrorist) && DiscordUtilities!.IsPlayerDataLoaded(p)).Take(18).ToList();
+            var playerList = Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV && p.Connected == PlayerConnectedState.Connected && (p.Team == CsTeam.Terrorist || p.Team == CsTeam.CounterTerrorist) && DiscordUtilities!.IsPlayerDataLoaded(p)).Take(18).ToList();
             if (playerList.Count <= 1)
                 return;
 

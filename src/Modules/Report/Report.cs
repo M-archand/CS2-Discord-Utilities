@@ -275,7 +275,7 @@ namespace Report
 
         private int GetTargetsForReportCount(CCSPlayerController player)
         {
-            return Utilities.GetPlayers().Where(p => p.IsValid && p != player && !p.IsHLTV && !p.IsBot && p.Connected == PlayerConnectedState.PlayerConnected && p.SteamID.ToString().Length == 17 && !AdminManager.PlayerHasPermissions(p, Config.UnreportableFlag)).Count();
+            return Utilities.GetPlayers().Count(p => p.IsValid && p != player && !p.IsHLTV && !p.IsBot && p.Connected == PlayerConnectedState.Connected && p.SteamID.ToString().Length == 17 && !AdminManager.PlayerHasPermissions(p, Config.UnreportableFlag));
         }
 
         private void OnInteractionCreated(InteractionData interaction, UserData user)

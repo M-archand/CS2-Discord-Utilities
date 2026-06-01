@@ -1,11 +1,13 @@
 
 using Discord.WebSocket;
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace DiscordUtilities
 {
     public partial class DiscordUtilities
     {
+        private static readonly JsonSerializerOptions indentedJsonOptions = new() { WriteIndented = true };
+
         private Dictionary<string, Dictionary<string, DateTime>> GetTimedRoles()
         {
             try
@@ -14,7 +16,7 @@ namespace DiscordUtilities
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    return JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, DateTime>>>(json) ?? new Dictionary<string, Dictionary<string, DateTime>>();
+                    return JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, DateTime>>>(json) ?? new Dictionary<string, Dictionary<string, DateTime>>();
                 }
                 return new Dictionary<string, Dictionary<string, DateTime>>();
             }
@@ -44,7 +46,7 @@ namespace DiscordUtilities
                 }
 
                 string filePath = $"{ModuleDirectory}/TimedRoles.json";
-                string json = JsonConvert.SerializeObject(timedRoles, Formatting.Indented);
+                string json = JsonSerializer.Serialize(timedRoles, indentedJsonOptions);
                 File.WriteAllText(filePath, json);
                 Perform_SendConsoleMessage($"User '{user.DisplayName}' ({user.Id}) has been added to role '{role.Name}' ({role.Id}) (Ends: '{endTime}')", ConsoleColor.Green);
             }
@@ -60,7 +62,7 @@ namespace DiscordUtilities
             try
             {
                 string filePath = $"{ModuleDirectory}/TimedRoles.json";
-                string json = JsonConvert.SerializeObject(timedRoles, Formatting.Indented);
+                string json = JsonSerializer.Serialize(timedRoles, indentedJsonOptions);
                 File.WriteAllText(filePath, json);
             }
             catch (Exception ex)

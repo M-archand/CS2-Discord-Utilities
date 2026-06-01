@@ -7,8 +7,8 @@ using DiscordUtilitiesAPI;
 using DiscordUtilitiesAPI.Builders;
 using DiscordUtilitiesAPI.Events;
 using DiscordUtilitiesAPI.Helpers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace ServerStatus
 {
@@ -19,6 +19,7 @@ namespace ServerStatus
         public override string ModuleVersion => "1.3";
         private IDiscordUtilitiesAPI? DiscordUtilities { get; set; }
         public Config Config { get; set; } = new();
+        private static readonly JsonSerializerOptions serverStatusJsonOptions = new() { WriteIndented = true };
         public void OnConfigParsed(Config config) { Config = config; }
         public override void OnAllPluginsLoaded(bool hotReload)
         {
@@ -127,10 +128,10 @@ namespace ServerStatus
                 try
                 {
                     string jsonContent = File.ReadAllText(filePath);
-                    JObject jsonObject = JObject.Parse(jsonContent);
+                    JsonNode jsonObject = JsonNode.Parse(jsonContent)!;
 
                     jsonObject["Message ID"] = message.MessageID.ToString();
-                    File.WriteAllText(filePath, jsonObject.ToString(Formatting.Indented));
+                    File.WriteAllText(filePath, jsonObject.ToJsonString(serverStatusJsonOptions));
 
                     DiscordUtilities!.SendConsoleMessage($"Server Status successfully configured. Message ID has been automatically added ('{message.ChannelID}')", MessageType.Success);
                     Config.MessageID = message.MessageID.ToString();

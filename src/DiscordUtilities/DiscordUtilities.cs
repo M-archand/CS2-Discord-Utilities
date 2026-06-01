@@ -14,7 +14,7 @@ namespace DiscordUtilities
     {
         public override string ModuleName => "Discord Utilities";
         public override string ModuleAuthor => "Nocky";
-        public override string ModuleVersion => "2.1.0 (v337)";
+        public override string ModuleVersion => "2.2.0";
         public void OnConfigParsed(DUConfig config)
         {
             Config = config;
@@ -64,8 +64,7 @@ namespace DiscordUtilities
         }
         public override void Load(bool hotReload)
         {
-            var DUApi = new DiscordUtilities();
-            Capabilities.RegisterPluginCapability(DiscordUtilitiesAPI, () => DUApi);
+            Capabilities.RegisterPluginCapability(DiscordUtilitiesAPI, () => this);
 
             CreateCustomCommands();
             if (Config.UseCustomVariables)
@@ -108,7 +107,7 @@ namespace DiscordUtilities
                     AddTimer(60.0f, () =>
                     {
                         UpdateServerData();
-                        foreach (var player in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV && p.Connected == PlayerConnectedState.PlayerConnected && p.AuthorizedSteamID != null && playerData.ContainsKey(p.Slot)))
+                        foreach (var player in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV && p.Connected == PlayerConnectedState.Connected && p.AuthorizedSteamID != null && playerData.ContainsKey(p.Slot)))
                         {
                             playerData[player.Slot].PlayedTime++;
                         }

@@ -1,4 +1,3 @@
-using CounterStrikeSharp.API.Core;
 using Discord;
 using Discord.WebSocket;
 

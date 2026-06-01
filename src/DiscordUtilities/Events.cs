@@ -1,3 +1,4 @@
+using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes.Registration;
 
@@ -9,36 +10,42 @@ namespace DiscordUtilities
         public HookResult OnPlayerConnectFull(EventPlayerConnectFull @event, GameEventInfo info)
         {
             var player = @event.Userid;
-            if (player != null && player.IsValid && player.AuthorizedSteamID != null && !playerData.ContainsKey(player.Slot))
+
+            Server.NextFrame(() =>
             {
-                PlayerData newPlayer = new PlayerData
+                if (player != null && player.IsValid && !player.IsBot && !player.IsHLTV
+                    && player.Connected == PlayerConnectedState.Connected
+                    && player.AuthorizedSteamID != null && !playerData.ContainsKey(player.Slot))
                 {
-                    Name = player.PlayerName,
-                    UserId = player.UserId.ToString()!,
-                    SteamId32 = player.AuthorizedSteamID.SteamId32.ToString(),
-                    SteamId64 = player.AuthorizedSteamID.SteamId64.ToString(),
-                    IpAddress = player.IpAddress != null ? player.IpAddress.ToString() : "Invalid",
-                    CommunityUrl = player.AuthorizedSteamID.ToCommunityUrl().ToString(),
-                    PlayedTime = 0,
-                    FirstJoin = DateTime.Now,
-                    LastSeen = DateTime.Now,
-                    CountryShort = "Undefined",
-                    CountryLong = "Undefined",
-                    CountryEmoji = ":flag_white:",
-                    DiscordGlobalname = "",
-                    DiscordDisplayName = "",
-                    DiscordPing = "",
-                    DiscordAvatar = "",
-                    DiscordID = "",
-                    IsLinked = false,
-                };
-                playerData.Add(player.Slot, newPlayer);
-                if (IsDbConnected)
-                    _ = UpdateOrLoadPlayerData(player, player.AuthorizedSteamID.SteamId64.ToString(), 0);
-            }
-            serverData.OnlinePlayers = GetPlayersCount().ToString();
-            serverData.OnlinePlayersAndBots = GetPlayersCountWithBots().ToString();
-            serverData.OnlineBots = GetBotsCounts().ToString();
+                    PlayerData newPlayer = new PlayerData
+                    {
+                        Name = player.PlayerName,
+                        UserId = player.UserId?.ToString() ?? "Invalid",
+                        SteamId32 = player.AuthorizedSteamID.SteamId32.ToString(),
+                        SteamId64 = player.AuthorizedSteamID.SteamId64.ToString(),
+                        IpAddress = player.IpAddress != null ? player.IpAddress.ToString() : "Invalid",
+                        CommunityUrl = player.AuthorizedSteamID.ToCommunityUrl().ToString(),
+                        PlayedTime = 0,
+                        FirstJoin = DateTime.Now,
+                        LastSeen = DateTime.Now,
+                        CountryShort = "Undefined",
+                        CountryLong = "Undefined",
+                        CountryEmoji = ":flag_white:",
+                        DiscordGlobalname = "",
+                        DiscordDisplayName = "",
+                        DiscordPing = "",
+                        DiscordAvatar = "",
+                        DiscordID = "",
+                        IsLinked = false,
+                    };
+                    playerData.Add(player.Slot, newPlayer);
+                    if (IsDbConnected)
+                        _ = UpdateOrLoadPlayerData(player, player.AuthorizedSteamID.SteamId64.ToString(), 0);
+                }
+                serverData.OnlinePlayers = GetPlayersCount().ToString();
+                serverData.OnlinePlayersAndBots = GetPlayersCountWithBots().ToString();
+                serverData.OnlineBots = GetBotsCounts().ToString();
+            });
             return HookResult.Continue;
         }
 

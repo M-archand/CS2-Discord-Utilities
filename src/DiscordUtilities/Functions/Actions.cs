@@ -3,12 +3,14 @@ using Discord;
 using CounterStrikeSharp.API.Modules.Cvars;
 using MaxMind.GeoIP2;
 using MaxMind.GeoIP2.Exceptions;
-using Newtonsoft.Json;
+using System.Text.Json;
 
 namespace DiscordUtilities
 {
     public partial class DiscordUtilities
     {
+        private static readonly JsonSerializerOptions caseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
         public async Task LoadMapImages()
         {
             mapImagesList.Clear();
@@ -20,7 +22,7 @@ namespace DiscordUtilities
                     response.EnsureSuccessStatusCode();
 
                     string responseBody = await response.Content.ReadAsStringAsync();
-                    mapImagesList = JsonConvert.DeserializeObject<List<string>>(responseBody)!;
+                    mapImagesList = JsonSerializer.Deserialize<List<string>>(responseBody)!;
                     if (Config.Debug)
                         Perform_SendConsoleMessage($"Loaded total '{mapImagesList.Count} Map Images'", ConsoleColor.Cyan);
                 }
@@ -46,7 +48,7 @@ namespace DiscordUtilities
                     response.EnsureSuccessStatusCode();
 
                     string responseBody = await response.Content.ReadAsStringAsync();
-                    var versions = JsonConvert.DeserializeObject<Dictionary<string, string>>(responseBody)!;
+                    var versions = JsonSerializer.Deserialize<Dictionary<string, string>>(responseBody)!;
                     if (versions != null)
                     {
                         foreach (var module in versions)
@@ -96,9 +98,11 @@ namespace DiscordUtilities
                 try
                 {
                     var jsonData = File.ReadAllText(filePath);
-                    dynamic deserializedJson = JsonConvert.DeserializeObject(jsonData)!;
+                    using var document = JsonDocument.Parse(jsonData);
 
-                    var conditions = deserializedJson["Custom Variables"].ToObject<Dictionary<string, List<ConditionData>>>();
+                    Dictionary<string, List<ConditionData>>? conditions = null;
+                    if (document.RootElement.TryGetProperty("Custom Variables", out var customVariablesElement))
+                        conditions = customVariablesElement.Deserialize<Dictionary<string, List<ConditionData>>>(caseInsensitiveJsonOptions);
                     if (conditions != null)
                     {
                         foreach (KeyValuePair<string, List<ConditionData>> item in conditions)

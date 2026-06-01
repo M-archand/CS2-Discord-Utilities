@@ -673,15 +673,15 @@ namespace DiscordUtilities
 
         private int GetPlayersCount()
         {
-            return Utilities.GetPlayers().Where(p => p.IsValid && !p.IsHLTV && !p.IsBot && p.Connected == PlayerConnectedState.PlayerConnected && p.SteamID.ToString().Length == 17).Count();
+            return Utilities.GetPlayers().Count(p => p.IsValid && !p.IsHLTV && !p.IsBot && p.Connected == PlayerConnectedState.Connected && p.SteamID.ToString().Length == 17);
         }
         private int GetPlayersCountWithBots()
         {
-            return Utilities.GetPlayers().Where(p => p.IsValid && !p.IsHLTV && p.Connected == PlayerConnectedState.PlayerConnected).Count();
+            return Utilities.GetPlayers().Count(p => p.IsValid && !p.IsHLTV && p.Connected == PlayerConnectedState.Connected);
         }
         private int GetBotsCounts()
         {
-            return Utilities.GetPlayers().Where(p => p.IsValid && !p.IsHLTV && p.IsBot).Count();
+            return Utilities.GetPlayers().Count(p => p.IsValid && !p.IsHLTV && p.IsBot);
         }
         private static CCSGameRules GameRules()
         {
