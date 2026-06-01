@@ -9,7 +9,9 @@ namespace DiscordUtilities
 {
     public partial class DiscordUtilities
     {
-        private static readonly JsonSerializerOptions caseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true };
+        private static readonly JsonSerializerOptions caseInsensitiveJsonOptions = new() { PropertyNameCaseInsensitive = true, ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+        private static readonly JsonSerializerOptions tolerantJsonOptions = new() { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+        private static readonly JsonDocumentOptions tolerantJsonDocumentOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
         public async Task LoadMapImages()
         {
@@ -22,7 +24,7 @@ namespace DiscordUtilities
                     response.EnsureSuccessStatusCode();
 
                     string responseBody = await response.Content.ReadAsStringAsync();
-                    mapImagesList = JsonSerializer.Deserialize<List<string>>(responseBody)!;
+                    mapImagesList = JsonSerializer.Deserialize<List<string>>(responseBody, tolerantJsonOptions)!;
                     if (Config.Debug)
                         Perform_SendConsoleMessage($"Loaded total '{mapImagesList.Count} Map Images'", ConsoleColor.Cyan);
                 }
@@ -48,7 +50,7 @@ namespace DiscordUtilities
                     response.EnsureSuccessStatusCode();
 
                     string responseBody = await response.Content.ReadAsStringAsync();
-                    var versions = JsonSerializer.Deserialize<Dictionary<string, string>>(responseBody)!;
+                    var versions = JsonSerializer.Deserialize<Dictionary<string, string>>(responseBody, tolerantJsonOptions)!;
                     if (versions != null)
                     {
                         foreach (var module in versions)
@@ -98,7 +100,7 @@ namespace DiscordUtilities
                 try
                 {
                     var jsonData = File.ReadAllText(filePath);
-                    using var document = JsonDocument.Parse(jsonData);
+                    using var document = JsonDocument.Parse(jsonData, tolerantJsonDocumentOptions);
 
                     Dictionary<string, List<ConditionData>>? conditions = null;
                     if (document.RootElement.TryGetProperty("Custom Variables", out var customVariablesElement))

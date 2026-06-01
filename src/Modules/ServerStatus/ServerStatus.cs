@@ -20,6 +20,7 @@ namespace ServerStatus
         private IDiscordUtilitiesAPI? DiscordUtilities { get; set; }
         public Config Config { get; set; } = new();
         private static readonly JsonSerializerOptions serverStatusJsonOptions = new() { WriteIndented = true };
+        private static readonly JsonDocumentOptions serverStatusJsonDocumentOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
         public void OnConfigParsed(Config config) { Config = config; }
         public override void OnAllPluginsLoaded(bool hotReload)
         {
@@ -128,7 +129,7 @@ namespace ServerStatus
                 try
                 {
                     string jsonContent = File.ReadAllText(filePath);
-                    JsonNode jsonObject = JsonNode.Parse(jsonContent)!;
+                    JsonNode jsonObject = JsonNode.Parse(jsonContent, documentOptions: serverStatusJsonDocumentOptions)!;
 
                     jsonObject["Message ID"] = message.MessageID.ToString();
                     File.WriteAllText(filePath, jsonObject.ToJsonString(serverStatusJsonOptions));

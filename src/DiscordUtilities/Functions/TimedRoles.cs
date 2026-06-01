@@ -7,6 +7,7 @@ namespace DiscordUtilities
     public partial class DiscordUtilities
     {
         private static readonly JsonSerializerOptions indentedJsonOptions = new() { WriteIndented = true };
+        private static readonly JsonSerializerOptions timedRolesReadJsonOptions = new() { ReadCommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
 
         private Dictionary<string, Dictionary<string, DateTime>> GetTimedRoles()
         {
@@ -16,7 +17,7 @@ namespace DiscordUtilities
                 if (File.Exists(filePath))
                 {
                     string json = File.ReadAllText(filePath);
-                    return JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, DateTime>>>(json) ?? new Dictionary<string, Dictionary<string, DateTime>>();
+                    return JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, DateTime>>>(json, timedRolesReadJsonOptions) ?? new Dictionary<string, Dictionary<string, DateTime>>();
                 }
                 return new Dictionary<string, Dictionary<string, DateTime>>();
             }
