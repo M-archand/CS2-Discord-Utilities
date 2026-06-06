@@ -39,13 +39,26 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
                 throw new Exception($"Role with id '{roleId}' was not found!");
             }
 
-            var users = role.Members;
-            if (users != null)
+            var users = role.Members?.ToList();
+            if (users != null && users.Count > 0)
             {
-                foreach (var user in users)
+                using var gate = new SemaphoreSlim(5);
+                await Task.WhenAll(users.Select(async user =>
                 {
-                    await user.RemoveRoleAsync(role);
-                }
+                    await gate.WaitAsync();
+                    try
+                    {
+                        await user.RemoveRoleAsync(role);
+                    }
+                    catch (Exception ex)
+                    {
+                        Perform_SendConsoleMessage($"Failed to remove role '{roleId}' from user '{user.Id}': '{ex.Message}'", ConsoleColor.Red);
+                    }
+                    finally
+                    {
+                        gate.Release();
+                    }
+                }));
             }
             if (IsDebug)
                 Perform_SendConsoleMessage($"Role with id '{roleId}' has been cleared", ConsoleColor.Cyan);

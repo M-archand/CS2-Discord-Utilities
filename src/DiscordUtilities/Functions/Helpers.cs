@@ -535,9 +535,7 @@ namespace DiscordUtilities
             return embedOptions > 0;
         }
 
-        private static string IsValidFlag(string flagEmoji)
-        {
-            var flagsList = new List<string>
+        private static readonly HashSet<string> flagsList = new HashSet<string>
             {
                 ":flag_ac:", ":flag_ad:", ":flag_ae:", ":flag_af:", ":flag_ag:",
                 ":flag_ai:", ":flag_al:", ":flag_am:", ":flag_ao:", ":flag_aq:",
@@ -593,6 +591,8 @@ namespace DiscordUtilities
                 ":flag_zm:", ":flag_zw:"
             };
 
+        private static string IsValidFlag(string flagEmoji)
+        {
             if (flagsList.Contains(flagEmoji))
                 return flagEmoji;
 

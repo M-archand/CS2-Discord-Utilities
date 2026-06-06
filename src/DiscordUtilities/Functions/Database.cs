@@ -174,7 +174,7 @@ namespace DiscordUtilities
                 }
                 if (!linkedPlayers.ContainsKey(ulong.Parse(steamid)))
                 {
-                    linkedPlayers.Add(ulong.Parse(steamid), ulong.Parse(discordid));
+                    AddLinkedPlayer(ulong.Parse(steamid), ulong.Parse(discordid));
                     Server.NextFrame(() =>
                     {
                         var player = Utilities.GetPlayerFromSteamId(ulong.Parse(steamid));
@@ -200,7 +200,7 @@ namespace DiscordUtilities
 
         public static async Task LoadLinkedPlayers()
         {
-            linkedPlayers.Clear();
+            ClearLinkedPlayers();
             try
             {
                 using (var connection = GetConnection())
@@ -216,7 +216,7 @@ namespace DiscordUtilities
                                 string steamid = reader.GetString("steamid");
                                 string discordid = reader.GetString("discordid");
                                 if (!linkedPlayers.ContainsKey(ulong.Parse(steamid)))
-                                    linkedPlayers.Add(ulong.Parse(steamid), ulong.Parse(discordid));
+                                    AddLinkedPlayer(ulong.Parse(steamid), ulong.Parse(discordid));
                             }
                         }
                     }
@@ -242,8 +242,7 @@ namespace DiscordUtilities
                         await cmd.ExecuteNonQueryAsync();
                     }
                 }
-                if (linkedPlayers.ContainsKey(ulong.Parse(steamid)))
-                    linkedPlayers.Remove(ulong.Parse(steamid));
+                RemoveLinkedPlayer(ulong.Parse(steamid));
             }
             catch (Exception ex)
             {

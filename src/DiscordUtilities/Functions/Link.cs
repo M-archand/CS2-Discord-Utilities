@@ -139,12 +139,11 @@ namespace DiscordUtilities
 
             string content = string.Empty;
             var embed = new EmbedBuilder();
-            if (linkedPlayers.ContainsValue(user.Id))
+            if (linkedPlayersReverse.TryGetValue(user.Id, out var findSteamIdByUserId))
             {
                 if (!Config.Link.ResponseServer)
                     return;
 
-                var findSteamIdByUserId = linkedPlayers.FirstOrDefault(x => x.Value == user.Id).Key;
                 var replaceVariablesBuilder = new ReplaceVariables.Builder
                 {
                     CustomVariables = new(){
@@ -171,7 +170,7 @@ namespace DiscordUtilities
                     {
                         Server.NextFrame(() =>
                         {
-                            linkedPlayers.Add(ulong.Parse(steamId), user.Id);
+                            AddLinkedPlayer(ulong.Parse(steamId), user.Id);
                             var player = Utilities.GetPlayerFromSteamId(ulong.Parse(steamId));
                             if (player != null)
                             {

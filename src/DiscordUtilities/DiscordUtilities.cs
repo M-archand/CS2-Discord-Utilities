@@ -218,21 +218,17 @@ namespace DiscordUtilities
         {
             if (Config.Link.Enabled && Config.Link.ResponseServer)
             {
-                if (linkedPlayers.ContainsValue(user.Id))
+                if (linkedPlayersReverse.TryGetValue(user.Id, out var steamId))
                 {
-                    var steamId = linkedPlayers.FirstOrDefault(x => x.Value == user.Id).Key;
-                    if (linkedPlayers.ContainsKey(steamId))
-                    {
-                        await RemovePlayerData(steamId.ToString());
-                        await CreateScheduledEventAsync("refreshlinkedplayers");
-                    }
+                    await RemovePlayerData(steamId.ToString());
+                    await CreateScheduledEventAsync($"removelinked;{steamId}");
                 }
             }
         }
 
         private async Task GuildMemberUpdated(Cacheable<SocketGuildUser, ulong> before, SocketGuildUser after)
         {
-            if (!linkedPlayers.ContainsValue(after.Id))
+            if (!linkedPlayersReverse.ContainsKey(after.Id))
                 return;
 
             var beforeGuildUser = await before.GetOrDownloadAsync();
@@ -272,7 +268,7 @@ namespace DiscordUtilities
             await guildEvent.DeleteAsync();
         }
 
-        private async Task ScheduledEventCreated(SocketGuildEvent scheduledEvent)
+        private Task ScheduledEventCreated(SocketGuildEvent scheduledEvent)
         {
             if (scheduledEvent.Location.Equals("Discord Utilities"))
             {
@@ -281,7 +277,7 @@ namespace DiscordUtilities
                     var data = scheduledEvent.Description.Split(';');
                     var CustomId = data.FirstOrDefault();
                     if (CustomId == null)
-                        return;
+                        return Task.CompletedTask;
 
                     if (CustomId.Equals("addcode"))
                     {
@@ -295,13 +291,24 @@ namespace DiscordUtilities
                         if (linkCodes.ContainsKey(code))
                             linkCodes.Remove(code);
                     }
-                    else if (CustomId.Equals("refreshlinkedplayers"))
+                    else if (CustomId.Equals("addlinked"))
                     {
-                        await LoadLinkedPlayers();
+                        if (data.Length >= 3 && ulong.TryParse(data[1], out var steamid) && ulong.TryParse(data[2], out var discordid))
+                        {
+                            if (!linkedPlayers.ContainsKey(steamid))
+                                AddLinkedPlayer(steamid, discordid);
+                        }
+                    }
+                    else if (CustomId.Equals("removelinked"))
+                    {
+                        if (data.Length >= 2 && ulong.TryParse(data[1], out var steamid))
+                        {
+                            RemoveLinkedPlayer(steamid);
+                        }
                     }
                 }
             }
-            return;
+            return Task.CompletedTask;
         }
 
         private Task InteractionCreatedHandler(SocketInteraction interaction)

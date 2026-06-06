@@ -111,7 +111,7 @@ namespace DiscordUtilities
                 {
                     _ = InsertPlayerData(steamId.ToString(), userId.ToString(), user.DisplayName);
                     _ = PerformLinkRole(user, guild.GetRole(ulong.Parse(Config.Link.LinkDiscordSettings.LinkRole)));
-                    _ = CreateScheduledEventAsync("refreshlinkedplayers");
+                    _ = CreateScheduledEventAsync($"addlinked;{steamId};{userId}");
                     info.ReplyToCommand($"[Discord Utilities] Player '{steamId}' has been linked with the Discord User: '{user.DisplayName}' ({userId})");
                 }
                 else
@@ -148,7 +148,7 @@ namespace DiscordUtilities
 
                 _ = RemovePlayerData(steamId.ToString());
                 _ = RemoveLinkRole(userId);
-                _ = CreateScheduledEventAsync("refreshlinkedplayers");
+                _ = CreateScheduledEventAsync($"removelinked;{steamId}");
             }
             else
             {
@@ -333,7 +333,7 @@ namespace DiscordUtilities
                 var steamId = player.AuthorizedSteamID.SteamId64.ToString();
                 _ = RemovePlayerData(steamId);
                 _ = RemoveLinkRole(discordId);
-                _ = CreateScheduledEventAsync("refreshlinkedplayers");
+                _ = CreateScheduledEventAsync($"removelinked;{steamId}");
                 player.PrintToChat($"{Localizer["Chat.Prefix"]} {Localizer["Chat.AccountUnliked"]}");
             }
             else
