@@ -11,6 +11,7 @@ namespace DiscordUtilities
         public static PluginCapability<IDiscordUtilitiesAPI> DiscordUtilitiesAPI { get; } = new("discord_utilities");
         public DUConfig Config { get; set; } = new();
         public static DiscordSocketClient? BotClient;
+        public static CancellationTokenSource? BotCancellation;
         public static CommandService? BotCommands;
         public static IServiceProvider? BotServices;
         public static DatabaseConnection? databaseData;

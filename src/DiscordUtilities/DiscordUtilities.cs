@@ -13,8 +13,11 @@ namespace DiscordUtilities
     public partial class DiscordUtilities : BasePlugin, IPluginConfig<DUConfig>
     {
         public override string ModuleName => "Discord Utilities";
-        public override string ModuleAuthor => "Nocky";
-        public override string ModuleVersion => "2.2.0";
+        public override string ModuleAuthor => "Nocky, Marchand";
+        public override string ModuleVersion => "2.3.0";
+        private bool mapStarted;
+        private Listeners.OnMapStart? onMapStartListener;
+        private Listeners.OnMapEnd? onMapEndListener;
         public void OnConfigParsed(DUConfig config)
         {
             Config = config;
@@ -86,8 +89,8 @@ namespace DiscordUtilities
             serverData.IP = Config.ServerIP;
 
             Server.ExecuteCommand("sv_hibernate_when_empty false");
-            bool mapStarted = false;
-            RegisterListener<Listeners.OnMapStart>(mapName =>
+            mapStarted = false;
+            onMapStartListener = mapName =>
             {
                 if (!mapStarted)
                 {
@@ -106,7 +109,8 @@ namespace DiscordUtilities
                         ServerDataLoaded();
                     });
 
-                    AddTimer(60.0f, () =>
+                    updateTimer?.Kill();
+                    updateTimer = AddTimer(60.0f, () =>
                     {
                         UpdateServerData();
                         foreach (var player in Utilities.GetPlayers().Where(p => !p.IsBot && !p.IsHLTV && p.Connected == PlayerConnectedState.Connected && p.AuthorizedSteamID != null && playerData.ContainsKey(p.Slot)))
@@ -115,14 +119,17 @@ namespace DiscordUtilities
                         }
                     }, TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
                 }
-            });
-            RegisterListener<Listeners.OnMapEnd>(() => { mapStarted = false; });
+            };
+            onMapEndListener = () => { mapStarted = false; };
+            RegisterListener(onMapStartListener);
+            RegisterListener(onMapEndListener);
         }
 
         private async Task LoadDiscordBOT()
         {
             try
             {
+                BotCancellation = new CancellationTokenSource();
                 BotClient = new DiscordSocketClient(new DiscordSocketConfig()
                 {
                     AlwaysDownloadUsers = true,
@@ -141,7 +148,11 @@ namespace DiscordUtilities
 
                 BotClient.Ready += ReadyAsync;
 
-                await Task.Delay(-1);
+                await Task.Delay(Timeout.Infinite, BotCancellation.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected on Unload/hot-reload
             }
             catch (Exception ex)
             {
@@ -331,15 +342,61 @@ namespace DiscordUtilities
         public override void Unload(bool hotReload)
         {
             if (updateTimer != null)
-                updateTimer.Kill();
-
-            if (IsBotConnected && BotClient != null)
             {
-                BotClient.SlashCommandExecuted -= SlashCommandHandler;
-                BotClient.MessageReceived -= MessageReceivedHandler;
-                BotClient.InteractionCreated -= InteractionCreatedHandler;
-                BotClient.GuildScheduledEventCreated -= ScheduledEventCreated;
+                updateTimer.Kill();
+                updateTimer = null;
             }
+
+            if (onMapStartListener != null)
+            {
+                RemoveListener(onMapStartListener);
+                onMapStartListener = null;
+            }
+            if (onMapEndListener != null)
+            {
+                RemoveListener(onMapEndListener);
+                onMapEndListener = null;
+            }
+            mapStarted = false;
+
+            if (BotCancellation != null)
+            {
+                BotCancellation.Cancel();
+                BotCancellation.Dispose();
+                BotCancellation = null;
+            }
+
+            var client = BotClient;
+            if (client != null)
+            {
+                client.Ready -= ReadyAsync;
+                client.SlashCommandExecuted -= SlashCommandHandler;
+                client.MessageReceived -= MessageReceivedHandler;
+                client.InteractionCreated -= InteractionCreatedHandler;
+                client.GuildScheduledEventCreated -= ScheduledEventCreated;
+                client.GuildMemberUpdated -= GuildMemberUpdated;
+                client.UserLeft -= GuildMemberLeft;
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await client.StopAsync();
+                        await client.LogoutAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Perform_SendConsoleMessage($"An error occurred while shutting down the Discord BOT: '{ex.Message}'", ConsoleColor.Red);
+                    }
+                    finally
+                    {
+                        client.Dispose();
+                    }
+                });
+            }
+
+            BotClient = null;
+            IsBotConnected = false;
         }
 
         public static void Perform_SendConsoleMessage(string text, ConsoleColor color)
