@@ -11,8 +11,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
 {
     public void RemoveSavedCustomMessage(ulong messageId)
     {
-        if (savedMessages.ContainsKey(messageId))
-            savedMessages.Remove(messageId);
+        savedMessages.TryRemove(messageId, out _);
     }
 
     public void RemoveAllUsersFromRole(string roleId)
@@ -198,7 +197,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
                     if (saveMessage)
                     {
                         if (!savedMessages.ContainsKey(message.Id))
-                            savedMessages.Add(message.Id, message);
+                            savedMessages[message.Id] = message;
                     }
                 }
             }
@@ -352,7 +351,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
                 await interaction.RespondAsync(text: string.IsNullOrEmpty(content) ? null : content, embed: IsEmbedValid(embed) ? embed.Build() : null, components: components != null ? components.Build() : null, ephemeral: silent);
             }
 
-            savedInteractions.Remove(interactionId);
+            savedInteractions.TryRemove(interactionId, out _);
 
             if (IsDebug)
                 Perform_SendConsoleMessage($"Respond message to Interaction was sent to interaction with ID '{interactionId}'", ConsoleColor.Cyan);
@@ -388,7 +387,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         {
             var interaction = savedInteractions[interactionId];
             await interaction.RespondAsync(text: string.IsNullOrEmpty(content) ? null : content, embed: IsEmbedValid(embed) ? embed.Build() : null, components: components != null ? components.Build() : null, ephemeral: silent);
-            savedInteractions.Remove(interactionId);
+            savedInteractions.TryRemove(interactionId, out _);
             if (IsDebug)
                 Perform_SendConsoleMessage($"Respond message to Slash Command was sent to interaction with ID '{interactionId}'", ConsoleColor.Cyan);
         }
@@ -406,7 +405,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         {
             var interaction = savedInteractions[interactionId];
             _ = interaction.RespondWithModalAsync(modalToBuild.Build());
-            savedInteractions.Remove(interactionId);
+            savedInteractions.TryRemove(interactionId, out _);
             if (IsDebug)
                 Perform_SendConsoleMessage($"Respond modal to Interaction was sent to interaction with ID '{interactionId}'", ConsoleColor.Cyan);
         }
@@ -424,7 +423,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         {
             var interaction = savedInteractions[interactionId];
             _ = interaction.RespondWithModalAsync(modalToBuild.Build());
-            savedInteractions.Remove(interactionId);
+            savedInteractions.TryRemove(interactionId, out _);
             if (IsDebug)
                 Perform_SendConsoleMessage($"Respond modal to Slash Command was sent to interaction with ID '{interactionId}'", ConsoleColor.Cyan);
         }

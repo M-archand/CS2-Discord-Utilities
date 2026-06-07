@@ -360,7 +360,7 @@ namespace DiscordUtilities
             if (!linkedPlayers.ContainsKey(player.AuthorizedSteamID.SteamId64))
             {
                 string code;
-                if (linkCodes.ContainsValue(player.AuthorizedSteamID.SteamId64.ToString()))
+                if (linkCodes.Values.Contains(player.AuthorizedSteamID.SteamId64.ToString()))
                 {
                     code = linkCodes.FirstOrDefault(x => x.Value == player.AuthorizedSteamID.SteamId64.ToString()).Key;
                 }

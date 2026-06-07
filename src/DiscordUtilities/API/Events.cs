@@ -124,7 +124,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         };
 
         if (!savedInteractions.ContainsKey(interactionId))
-            savedInteractions.Add(interactionId, command);
+            savedInteractions[interactionId] = command;
 
         Server.NextFrame(() =>
         {
@@ -232,7 +232,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         };
 
         if (!savedInteractions.ContainsKey(interactionId))
-            savedInteractions.Add(interactionId, modalInteraction);
+            savedInteractions[interactionId] = modalInteraction;
 
         Server.NextFrame(() =>
         {
@@ -271,7 +271,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         };
 
         if (!savedInteractions.ContainsKey(interactionId))
-            savedInteractions.Add(interactionId, interaction);
+            savedInteractions[interactionId] = interaction;
 
         Server.NextFrame(() =>
         {

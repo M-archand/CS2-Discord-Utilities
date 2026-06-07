@@ -176,6 +176,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
 
     public Dictionary<ulong, ulong> GetLinkedPlayers()
     {
-        return linkedPlayers;
+        // Snapshot copy, stops external consumers mutating the live thread-safe collection
+        return new Dictionary<ulong, ulong>(linkedPlayers);
     }
 }

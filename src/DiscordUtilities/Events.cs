@@ -38,7 +38,7 @@ namespace DiscordUtilities
                         DiscordID = "",
                         IsLinked = false,
                     };
-                    playerData.Add(player.Slot, newPlayer);
+                    playerData[player.Slot] = newPlayer;
                     if (IsDbConnected)
                         _ = UpdateOrLoadPlayerData(player, player.AuthorizedSteamID.SteamId64.ToString(), 0);
                 }
@@ -57,7 +57,7 @@ namespace DiscordUtilities
             {
                 if (IsDbConnected)
                     _ = UpdateOrLoadPlayerData(player, player.AuthorizedSteamID.SteamId64.ToString(), playerData[player.Slot].PlayedTime, false);
-                playerData.Remove(player.Slot);
+                playerData.TryRemove(player.Slot, out _);
             }
             serverData.OnlinePlayers = GetPlayersCount().ToString();
             serverData.OnlinePlayersAndBots = GetPlayersCountWithBots().ToString();

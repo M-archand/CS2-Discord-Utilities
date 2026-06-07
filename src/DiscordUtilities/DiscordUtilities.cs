@@ -54,18 +54,10 @@ namespace DiscordUtilities
                 return;
             }
 
-            int counter = 0;
-            while (!IsBotConnected)
-            {
-                counter++;
-                if (counter > 5)
-                {
-                    Perform_SendConsoleMessage("Discord BOT failed to connect!", ConsoleColor.Red);
-                    break;
-                }
-                Perform_SendConsoleMessage("Loading Discord BOT...", ConsoleColor.DarkYellow);
-                await Task.Delay(3000);
-            }
+            // After a grace period, warn if the bot still hasn't reached the gateway-ready state.
+            await Task.Delay(15000);
+            if (!IsBotConnected)
+                Perform_SendConsoleMessage("Discord BOT failed to connect!", ConsoleColor.Red);
         }
         public override void Load(bool hotReload)
         {
@@ -283,13 +275,12 @@ namespace DiscordUtilities
                     {
                         var code = DecodeSecretString(data[1]);
                         if (!linkCodes.ContainsKey(code))
-                            linkCodes.Add(code, data[2]);
+                            linkCodes[code] = data[2];
                     }
                     else if (CustomId.Equals("removecode"))
                     {
                         var code = DecodeSecretString(data[1]);
-                        if (linkCodes.ContainsKey(code))
-                            linkCodes.Remove(code);
+                        linkCodes.TryRemove(code, out _);
                     }
                     else if (CustomId.Equals("addlinked"))
                     {
