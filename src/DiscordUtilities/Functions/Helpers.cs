@@ -683,9 +683,9 @@ namespace DiscordUtilities
         {
             return Utilities.GetPlayers().Count(p => p.IsValid && !p.IsHLTV && p.IsBot);
         }
-        private static CCSGameRules GameRules()
+        private static CCSGameRules? GameRules()
         {
-            return Utilities.FindAllEntitiesByDesignerName<CCSGameRulesProxy>("cs_gamerules").First().GameRules!;
+            return Utilities.FindAllEntitiesByDesignerName<CCSGameRulesProxy>("cs_gamerules").FirstOrDefault()?.GameRules;
         }
     }
 }

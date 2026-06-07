@@ -219,15 +219,20 @@ namespace DiscordUtilities
 
         private void UpdateServerData()
         {
-            var timelimit = ConVar.Find("mp_timelimit")!.GetPrimitiveValue<float>() * 60;
-            var gameStart = GameRules().GameStartTime;
-            var currentTime = Server.CurrentTime;
+            // Compute remaining map time from mp_timelimit and the round start; only when game rules are available.
+            var gameRules = GameRules();
+            if (gameRules != null)
+            {
+                var timelimit = ConVar.Find("mp_timelimit")!.GetPrimitiveValue<float>() * 60;
+                var gameStart = gameRules.GameStartTime;
+                var currentTime = Server.CurrentTime;
 
-            var timeleft = (int)timelimit - (int)(currentTime - gameStart);
-            TimeSpan time = TimeSpan.FromSeconds(timeleft);
+                var timeleft = (int)timelimit - (int)(currentTime - gameStart);
+                TimeSpan time = TimeSpan.FromSeconds(timeleft);
+                serverData.Timeleft = $"{time:mm\\:ss}";
+            }
 
             serverData.Name = ConVar.Find("hostname")!.StringValue;
-            serverData.Timeleft = $"{time:mm\\:ss}";
             serverData.OnlinePlayers = GetPlayersCount().ToString();
             serverData.OnlinePlayersAndBots = GetPlayersCountWithBots().ToString();
             serverData.OnlineBots = GetBotsCounts().ToString();

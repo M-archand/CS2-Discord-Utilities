@@ -73,7 +73,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
 
     public void Event_SlashCommand(SocketSlashCommand command)
     {
-        var interactionId = int.Parse(GetRandomCode(6, true));
+        var interactionId = NextInteractionId();
 
         List<CommandOptionsData> optionsData = new();
         foreach (var option in command.Data.Options)
@@ -124,7 +124,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         };
 
         if (!savedInteractions.ContainsKey(interactionId))
-            savedInteractions[interactionId] = command;
+            AddSavedInteraction(interactionId, command);
 
         Server.NextFrame(() =>
         {
@@ -201,7 +201,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
     public void Event_ModalSubmited(SocketInteraction interaction)
     {
         var modalInteraction = (SocketModal)interaction;
-        var interactionId = int.Parse(GetRandomCode(6, true));
+        var interactionId = NextInteractionId();
 
         ulong? guildId = interaction.GuildId != null ? interaction.GuildId.Value : null;
 
@@ -232,7 +232,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         };
 
         if (!savedInteractions.ContainsKey(interactionId))
-            savedInteractions[interactionId] = modalInteraction;
+            AddSavedInteraction(interactionId, modalInteraction);
 
         Server.NextFrame(() =>
         {
@@ -244,7 +244,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
 
     public void Event_InteractionCreated(SocketInteraction interaction, SocketMessageComponent component)
     {
-        var interactionId = int.Parse(GetRandomCode(6, true));
+        var interactionId = NextInteractionId();
         var message = component.Message;
         ulong? guildId = interaction.GuildId != null ? interaction.GuildId.Value : null;
         ulong? messageId = message != null ? message.Id : null;
@@ -271,7 +271,7 @@ public partial class DiscordUtilities : IDiscordUtilitiesAPI
         };
 
         if (!savedInteractions.ContainsKey(interactionId))
-            savedInteractions[interactionId] = interaction;
+            AddSavedInteraction(interactionId, interaction);
 
         Server.NextFrame(() =>
         {

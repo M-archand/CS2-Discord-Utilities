@@ -8,6 +8,7 @@ namespace DiscordUtilities
     public partial class DiscordUtilities
     {
         public static CounterStrikeSharp.API.Modules.Timers.Timer? updateTimer;
+        public static CounterStrikeSharp.API.Modules.Timers.Timer? interactionCleanupTimer;
         public static PluginCapability<IDiscordUtilitiesAPI> DiscordUtilitiesAPI { get; } = new("discord_utilities");
         public DUConfig Config { get; set; } = new();
         public static DiscordSocketClient? BotClient;
@@ -23,6 +24,9 @@ namespace DiscordUtilities
         public static string ServerId = "";
         public static string DateFormat = "";
         public static string LastBotActivityText = "";
-        public static DateTime LastInteractionTime = DateTime.Now;
+
+        // Monotonic, thread-safe source of unique savedInteractions keys.
+        private static int interactionIdCounter;
+        public static int NextInteractionId() => Interlocked.Increment(ref interactionIdCounter);
     }
 }

@@ -8,6 +8,27 @@ namespace DiscordUtilities
     {
         // Accessed from both the Discord.NET thread-pool and the CS2 main thread; ConcurrentDictionary keeps structural operations atomic.
         public static ConcurrentDictionary<int, SocketInteraction> savedInteractions = new();
+        
+        // Insert time (UTC) per saved interaction, used to cleanup stale entries
+        public static ConcurrentDictionary<int, DateTime> savedInteractionsAdded = new();
+
+        public static void AddSavedInteraction(int interactionId, SocketInteraction interaction)
+        {
+            savedInteractions[interactionId] = interaction;
+            savedInteractionsAdded[interactionId] = DateTime.UtcNow;
+        }
+
+        public static void RemoveSavedInteraction(int interactionId)
+        {
+            savedInteractions.TryRemove(interactionId, out _);
+            savedInteractionsAdded.TryRemove(interactionId, out _);
+        }
+
+        public static void ClearSavedInteractions()
+        {
+            savedInteractions.Clear();
+            savedInteractionsAdded.Clear();
+        }
         public static ConcurrentDictionary<ulong, IUserMessage> savedMessages = new();
         public static ConcurrentDictionary<int, PlayerData> playerData = new();
         public static ConcurrentDictionary<ulong, ulong> linkedPlayers = new();

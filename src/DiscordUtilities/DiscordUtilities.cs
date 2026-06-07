@@ -63,6 +63,9 @@ namespace DiscordUtilities
         {
             Capabilities.RegisterPluginCapability(DiscordUtilitiesAPI, () => this);
 
+            interactionCleanupTimer?.Kill();
+            interactionCleanupTimer = AddTimer(30.0f, CleanupSavedInteractions, TimerFlags.REPEAT);
+
             CreateCustomCommands();
             if (Config.UseCustomVariables)
                 LoadCustomConditions();
@@ -75,7 +78,7 @@ namespace DiscordUtilities
             ServerId = Config.ServerID;
             UseCustomVariables = Config.UseCustomVariables;
             DateFormat = Config.DateFormat;
-            savedInteractions.Clear();
+            ClearSavedInteractions();
 
             serverData.ModuleDirectory = ModuleDirectory;
             serverData.IP = Config.ServerIP;
@@ -304,11 +307,6 @@ namespace DiscordUtilities
 
         private Task InteractionCreatedHandler(SocketInteraction interaction)
         {
-            if ((DateTime.Now - LastInteractionTime).TotalSeconds > 60)
-            {
-                savedInteractions.Clear();
-            }
-
             if (interaction is SocketMessageComponent MessageComponent)
             {
                 Event_InteractionCreated(interaction, MessageComponent);
@@ -337,12 +335,29 @@ namespace DiscordUtilities
                 Event_SlashCommand(command);
         }
 
+        // Cleanup old interactions
+        private void CleanupSavedInteractions()
+        {
+            var cutoff = DateTime.UtcNow.AddSeconds(-60);
+            foreach (var entry in savedInteractionsAdded)
+            {
+                if (entry.Value < cutoff)
+                    RemoveSavedInteraction(entry.Key);
+            }
+        }
+
         public override void Unload(bool hotReload)
         {
             if (updateTimer != null)
             {
                 updateTimer.Kill();
                 updateTimer = null;
+            }
+
+            if (interactionCleanupTimer != null)
+            {
+                interactionCleanupTimer.Kill();
+                interactionCleanupTimer = null;
             }
 
             if (onMapStartListener != null)
