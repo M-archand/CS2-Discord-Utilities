@@ -71,7 +71,7 @@ namespace DiscordUtilities
             if (Config.UseCustomVariables)
                 LoadCustomConditions();
 
-            _ = LoadVersions();
+            //_ = LoadVersions();
             _ = LoadMapImages();
             IsDbConnected = false;
             IsBotConnected = false;
