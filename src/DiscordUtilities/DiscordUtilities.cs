@@ -14,7 +14,7 @@ namespace DiscordUtilities
     {
         public override string ModuleName => "Discord Utilities";
         public override string ModuleAuthor => "Nocky, Marchand";
-        public override string ModuleVersion => "2.3.0";
+        public override string ModuleVersion => "2.3.1";
         private bool mapStarted;
         private Listeners.OnMapStart? onMapStartListener;
         private Listeners.OnMapEnd? onMapEndListener;
