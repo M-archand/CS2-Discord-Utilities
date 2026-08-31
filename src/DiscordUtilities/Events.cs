@@ -53,10 +53,10 @@ namespace DiscordUtilities
         public HookResult OnPlayerDisconnect(EventPlayerDisconnect @event, GameEventInfo info)
         {
             var player = @event.Userid;
-            if (player != null && player.IsValid && playerData.ContainsKey(player.Slot) && player.AuthorizedSteamID != null)
+            if (player != null && playerData.TryGetValue(player.Slot, out var disconnectingPlayerData))
             {
                 if (IsDbConnected)
-                    _ = UpdateOrLoadPlayerData(player, player.AuthorizedSteamID.SteamId64.ToString(), playerData[player.Slot].PlayedTime, false);
+                    _ = UpdateOrLoadPlayerData(player, disconnectingPlayerData.SteamId64, disconnectingPlayerData.PlayedTime, false);
                 playerData.TryRemove(player.Slot, out _);
             }
             serverData.OnlinePlayers = GetPlayersCount().ToString();
