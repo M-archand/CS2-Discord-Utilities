@@ -18,6 +18,7 @@ namespace DiscordUtilities
         private bool mapStarted;
         private Listeners.OnMapStart? onMapStartListener;
         private Listeners.OnMapEnd? onMapEndListener;
+        private int playedTimeFlushCounter;
         public void OnConfigParsed(DUConfig config)
         {
             Config = config;
@@ -105,6 +106,7 @@ namespace DiscordUtilities
                     });
 
                     updateTimer?.Kill();
+                    playedTimeFlushCounter = 0;
                     updateTimer = AddTimer(60.0f, () =>
                     {
                         UpdateServerData();
@@ -112,10 +114,20 @@ namespace DiscordUtilities
                         {
                             playerData[player.Slot].PlayedTime++;
                         }
+                        playedTimeFlushCounter++;
+                        if (playedTimeFlushCounter >= 5)
+                        {
+                            playedTimeFlushCounter = 0;
+                            FlushPlayedTime();
+                        }
                     }, TimerFlags.REPEAT | TimerFlags.STOP_ON_MAPCHANGE);
                 }
             };
-            onMapEndListener = () => { mapStarted = false; };
+            onMapEndListener = () =>
+            {
+                mapStarted = false;
+                FlushPlayedTime();
+            };
             RegisterListener(onMapStartListener);
             RegisterListener(onMapEndListener);
         }
@@ -346,8 +358,24 @@ namespace DiscordUtilities
             }
         }
 
+        private void FlushPlayedTime()
+        {
+            if (!IsDbConnected)
+                return;
+
+            var playedTimes = playerData.Values
+                .Where(p => p.PlayedTime > 0)
+                .Select(p => new KeyValuePair<string, int>(p.SteamId64, p.PlayedTime))
+                .ToList();
+
+            if (playedTimes.Count > 0)
+                _ = SavePlayedTimeData(playedTimes);
+        }
+
         public override void Unload(bool hotReload)
         {
+            FlushPlayedTime();
+
             if (updateTimer != null)
             {
                 updateTimer.Kill();

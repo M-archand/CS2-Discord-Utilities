@@ -55,7 +55,7 @@ namespace DiscordUtilities
             var player = @event.Userid;
             if (player != null && playerData.TryGetValue(player.Slot, out var disconnectingPlayerData))
             {
-                if (IsDbConnected)
+                if (IsDbConnected && disconnectingPlayerData.PlayedTime > 0)
                     _ = UpdateOrLoadPlayerData(player, disconnectingPlayerData.SteamId64, disconnectingPlayerData.PlayedTime, false);
                 playerData.TryRemove(player.Slot, out _);
             }

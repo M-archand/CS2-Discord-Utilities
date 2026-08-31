@@ -157,6 +157,45 @@ namespace DiscordUtilities
             }
         }
 
+        public static async Task SavePlayedTimeData(List<KeyValuePair<string, int>> playedTimes)
+        {
+            if (playedTimes.Count == 0)
+                return;
+
+            try
+            {
+                using (var connection = GetConnection())
+                {
+                    await connection.OpenAsync();
+
+                    var values = string.Join(",\n", playedTimes.Select((_, i) => $"(@steamid{i}, @lastseen, @playedtime{i})"));
+                    string sql = $@"
+                                INSERT INTO `DU_time` (`steamid`, `lastseen`, `playedtime`)
+                                VALUES
+                                    {values}
+                                ON DUPLICATE KEY UPDATE
+                                    `lastseen` = VALUES(`lastseen`),
+                                    `playedtime` = VALUES(`playedtime`);
+                            ";
+
+                    using (var cmd = new MySqlCommand(sql, connection))
+                    {
+                        cmd.Parameters.AddWithValue("@lastseen", DateTime.Now);
+                        for (int i = 0; i < playedTimes.Count; i++)
+                        {
+                            cmd.Parameters.AddWithValue($"@steamid{i}", playedTimes[i].Key);
+                            cmd.Parameters.AddWithValue($"@playedtime{i}", playedTimes[i].Value);
+                        }
+                        await cmd.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Perform_SendConsoleMessage($"There was an error when saving played time: '{ex.Message}'", ConsoleColor.Red);
+            }
+        }
+
         public async Task InsertPlayerData(string steamid, string discordid, string username)
         {
             try
